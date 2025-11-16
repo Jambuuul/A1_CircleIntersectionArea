@@ -68,43 +68,6 @@ double estimateArea(const Rect& rect,
     return rect.Area() * static_cast<double>(count) / static_cast<double>(N);
 }
 
-Rect getAccurateRect(std::vector<Circle>& circles) {
-    double xmin = circles[0].x;
-    double xmax = xmin;
-    double ymin = circles[0].y;
-    double ymax = ymin;
-
-    for (const auto &c : circles) {
-        xmin = std::min(xmin, c.x);
-        xmax = std::max(xmax, c.x);
-        ymin = std::min(ymin, c.y);
-        ymax = std::max(ymax, c.y);
-    }
-
-    return Rect{xmin, xmax, ymin, ymax, "Accurate"};
-}
-
-Rect getWiderRect(std::vector<Circle>& circles) {
-    const double expandFactor = 2;
-
-    Rect r = getAccurateRect(circles);
-    double rmax = circles[0].r;
-    for (const auto &c : circles) {
-        rmax = std::max(rmax, c.r);
-    }
-
-    double xExpand = 0.5 * (r.xmax - r.xmin) + expandFactor * rmax;
-    double yExpand = 0.5 * (r.ymax - r.ymin) + expandFactor * rmax;
-
-    return Rect{
-            r.xmin - xExpand,
-            r.xmax + xExpand,
-            r.ymin - yExpand,
-            r.ymax + yExpand,
-            "Wider"
-    };
-}
-
 int main() {
 #ifdef HOME
     freopen("input.txt", "r", stdin);
@@ -130,9 +93,10 @@ int main() {
     int endN = 100000;
     int step = 500;
 
-    Rect acc = getAccurateRect(circles);
-    Rect wider = getWiderRect(circles);
-    std::vector<Rect> rects{acc, wider};
+    std::vector<Rect> rects {
+            {0, 3.5, 0, 3.5, "Wider"},
+            {0.7, 2.05, 0.7, 2.2, "Accurate"}
+    };
     for (const auto &rect : rects) {
         for (int curN = startN; curN <= endN; curN += step) {
             double res = estimateArea(
