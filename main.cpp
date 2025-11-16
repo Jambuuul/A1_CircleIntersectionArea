@@ -1,0 +1,155 @@
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <random>
+#include <vector>
+
+struct Point {
+    double x;
+    double y;
+};
+
+struct Circle {
+    double x;
+    double y;
+    double r;
+
+    bool Contains(Point& p) const {
+        double dx = (x - p.x);
+        double dy = (y - p.y);
+        return r * r >= dx * dx + dy * dy;
+    }
+};
+
+struct Rect {
+    double xmin;
+    double xmax;
+    double ymin;
+    double ymax;
+    std::string type;
+
+    [[nodiscard]]
+    double Area() const {
+        return (xmax - xmin) * (ymax - ymin);
+    }
+};
+
+
+std::mt19937_64 rng(12);
+
+double estimateArea(const Rect& rect,
+                    const std::vector<Circle>& circles,
+                    size_t N) {
+    std::uniform_real_distribution<double> distX(rect.xmin, rect.xmax), distY(rect.ymin, rect.ymax);
+
+
+
+    size_t count = 0;
+
+    for (size_t i = 0; i < N; ++i) {
+        double x = distX(rng);
+        double y = distY(rng);
+
+        Point p{x, y};
+
+        bool insideAll = true;
+        for (const auto &c : circles) {
+            if (!c.Contains(p)) {
+                insideAll = false;
+                break;
+            }
+        }
+
+        if (insideAll) {
+            ++count;
+        }
+    }
+
+    return rect.Area() * static_cast<double>(count) / static_cast<double>(N);
+}
+
+Rect getAccurateRect(std::vector<Circle>& circles) {
+    double xmin = circles[0].x;
+    double xmax = xmin;
+    double ymin = circles[0].y;
+    double ymax = ymin;
+
+    for (const auto &c : circles) {
+        xmin = std::min(xmin, c.x);
+        xmax = std::max(xmax, c.x);
+        ymin = std::min(ymin, c.y);
+        ymax = std::max(ymax, c.y);
+    }
+
+    return Rect{xmin, xmax, ymin, ymax, "Accurate"};
+}
+
+Rect getWiderRect(std::vector<Circle>& circles) {
+    const double expandFactor = 2;
+
+    Rect r = getAccurateRect(circles);
+    double rmax = circles[0].r;
+    for (const auto &c : circles) {
+        rmax = std::max(rmax, c.r);
+    }
+
+    double xExpand = 0.5 * (r.xmax - r.xmin) + expandFactor * rmax;
+    double yExpand = 0.5 * (r.ymax - r.ymin) + expandFactor * rmax;
+
+    return Rect{
+            r.xmin - xExpand,
+            r.xmax + xExpand,
+            r.ymin - yExpand,
+            r.ymax + yExpand,
+            "Wider"
+    };
+}
+
+int main() {
+#ifdef HOME
+    freopen("input.txt", "r", stdin);
+#endif
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    std::vector<Circle> circles{
+            Circle {1, 1, 1},
+            Circle {1.5, 2, std::sqrt(5) / 2},
+            Circle {2, 1.5, std::sqrt(5) / 2}
+    };
+
+    const double exactArea = 0.25 * std::numbers::pi + 1.25 * std::asin(0.8) - 1;
+
+
+//    Rect bound{xmin, xmax, ymin, ymax};
+    std::ofstream file("results.csv");
+    file << "rect,N,exactArea,estArea,relError,absError\n";
+
+    int startN = 100;
+
+    int endN = 100000;
+    int step = 500;
+
+    Rect acc = getAccurateRect(circles);
+    Rect wider = getWiderRect(circles);
+    std::vector<Rect> rects{acc, wider};
+    for (const auto &rect : rects) {
+        for (int curN = startN; curN <= endN; curN += step) {
+            double res = estimateArea(
+                    rect,
+                    circles,
+                    curN
+            );
+
+            double absError = std::abs(exactArea - res);
+            double relError = absError / exactArea;
+            file << rect.type << ','
+                 << curN << ','
+                 << exactArea << ','
+                 << res << ','
+                 << relError << ','
+                 << absError << '\n';
+        }
+    }
+    file.close();
+}
